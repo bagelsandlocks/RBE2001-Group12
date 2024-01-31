@@ -77,8 +77,11 @@ void BlueMotor::setEffort(int effort, bool clockwise)
 }
 
 void BlueMotor::moveTo(long target)  //Move to this encoder position within the specified
-{                                    //tolerance in the header file using proportional control
-                                     //then stop
-    
+{
+    while(getPosition() != target){
+        float error = target - getPosition();
+        float effortAmount = Kp * error;
+        setEffort(effortAmount);
+    }
     setEffort(0);
 }
