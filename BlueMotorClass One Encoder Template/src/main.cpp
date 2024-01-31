@@ -41,7 +41,7 @@ void loop()
     {
       timeToPrint = now + sampleTime;
       newPosition = motor.getPosition();
-      speedInRPM = ;
+      speedInRPM = ((newPosition-oldPosition)/CPR) * (timeToPrint/60000) ;
       Serial.print(now);
       Serial.print("          ");
       Serial.print(newPosition);
