@@ -19,4 +19,5 @@ private:
     const int AIN1 = 13;
     const int ENCA = 0;
     const int ENCB = 1;
+    float Kp = 2;
 };

@@ -76,7 +76,7 @@ void BlueMotor::setEffort(int effort, bool clockwise)
     OCR1C = constrain(effort, 0, 400);
 }
 
-void BlueMotor::moveTo(long target)  //Move to this encoder position within the specified
+void BlueMotor::moveTo(long target)
 {
     while(getPosition() != target){
         float error = target - getPosition();
