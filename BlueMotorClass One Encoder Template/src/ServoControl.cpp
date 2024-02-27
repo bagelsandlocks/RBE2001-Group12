@@ -19,15 +19,15 @@ with speed increasing as the pulse width decreases.
 
 //int servoPin = 5;
 int printDelay = 1000;
-int linearPotPin = 18;
+int linearPotPin = 19;
 int servoStop = 1490;  
 int servoJawDown = 1300;  
 int servoJawUp = 1700;  
 int linearPotVoltageADC = 500;
-int jawOpenPotVoltageADC = 600;
-int jawClosedPotVoltageADC = 940;
+int jawOpenPotVoltageADC = 100;
+int jawClosedPotVoltageADC = 880;
 int stuckThreshold = 1;
-int stuckCount;
+int stuckCount = 0;
 bool stuck = 0;
 enum STATE
 {
@@ -36,7 +36,7 @@ enum STATE
     CLOSE = 2,
     STUCK = 3
 };
-int state;
+int servoState;
 
 Servo32U4 jawServo;
 
@@ -52,19 +52,20 @@ void ServoControl::setup()
   jawServo.attach();
 }
 
-void ServoControl:: jawOpen(){
+void ServoControl::jawOpen(){
+    stuckCount = 0;
     int lastPosition;
     linearPotVoltageADC = analogRead(linearPotPin);
-    Serial.println(linearPotVoltageADC);
+    //Serial.println(linearPotVoltageADC);
     jawServo.writeMicroseconds(servoJawDown);
     while (linearPotVoltageADC > jawOpenPotVoltageADC){
         linearPotVoltageADC = analogRead(linearPotPin);
-        Serial.println(linearPotVoltageADC);
         if (printTimer.isExpired()){
             if (abs(lastPosition-linearPotVoltageADC) < stuckThreshold){
-                stuckCount ++;
-                if(stuckCount > 3){
-                    state = 3;
+                stuckCount++;
+                Serial.println(stuckCount);
+                if(stuckCount > 100){
+                    servoState = 3;
                     jawStop();
                     return;
                 }
@@ -72,47 +73,50 @@ void ServoControl:: jawOpen(){
         }
         lastPosition = linearPotVoltageADC;
     }
-    state = 2;
+    Serial.println(linearPotVoltageADC);
     jawStop();
 }
 
 void ServoControl:: jawClose(){
+    stuckCount = 0;
     int lastPosition;
     linearPotVoltageADC = analogRead(linearPotPin);
-    Serial.println(linearPotVoltageADC);
+    //Serial.println(linearPotVoltageADC);
     jawServo.writeMicroseconds(servoJawUp);
     while (linearPotVoltageADC < jawClosedPotVoltageADC){
         linearPotVoltageADC = analogRead(linearPotPin);
-        Serial.println(linearPotVoltageADC);
+        //Serial.println(linearPotVoltageADC);
         if (printTimer.isExpired()){
             if (abs(lastPosition-linearPotVoltageADC) < stuckThreshold){
-                stuckCount ++;
+                stuckCount++;
+                Serial.println(stuckCount);
                 if(stuckCount > 100){
-                    state = 3;
+                    servoState = 3;
                     jawStop();
                     return;
                 }
             }
         }
+
         lastPosition = linearPotVoltageADC;
     }
-    state = 1;
+    Serial.println(linearPotVoltageADC);
     jawStop();
 }
 
 void ServoControl::jawStop(){
     jawServo.writeMicroseconds(servoStop);
-    delay(1000);
+    delay(50);
 }
 
 void ServoControl::grabPanel()
 {
-    Serial.println(state);
-    switch(state){
+    Serial.println(servoState);
+    switch(servoState){
         case START:
         setup();
         jawStop();
-        state = 2;
+        servoState = 2;
         break;
 
         case OPEN:
@@ -127,9 +131,9 @@ void ServoControl::grabPanel()
 
         case STUCK:
         if (linearPotVoltageADC > jawOpenPotVoltageADC){
-            state = 1;
+            servoState = 1;
         }else{
-            state = 2;
+            servoState = 2;
         }
         break;
     }

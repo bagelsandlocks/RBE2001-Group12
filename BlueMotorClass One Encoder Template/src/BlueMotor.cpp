@@ -6,9 +6,11 @@ long oldValue = 0;
 long newValue;
 long count = 0;
 unsigned time = 0;
+int a;
+int b;// those are statues of encoders, 1 for high, 0 for low
 
-BlueMotor::BlueMotor()
-{
+// No argument constructor
+BlueMotor::BlueMotor(){
 }
 
 void BlueMotor::setup()
@@ -22,8 +24,12 @@ void BlueMotor::setup()
     TCCR1B = 0x11; //0b00010001;
     ICR1 = 400;
     OCR1C = 0;
+    int a = digitalRead(ENCA);
+    int b = digitalRead(ENCB);
+    
 
-    attachInterrupt(digitalPinToInterrupt(ENCA), isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCA), isr1, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCB), isr2, CHANGE);
     reset();
 }
 
@@ -44,10 +50,56 @@ void BlueMotor::reset()
 }
 
 
-void BlueMotor::isr()
+void BlueMotor::isr1()
 {
-    count++;
+    // if 
+    if(a == 1){
+        a = 0;
+        if(b == 1){
+            count++;
+        }
+        else{
+            count--;
+        }
+    }
+    else{
+         a = 1;
+        if(b == 0){
+            count++;
+        }
+        else{
+            count--;
+        }
+
+    }
+
+    
 }
+
+void BlueMotor::isr2()
+{
+    if(b == 1){
+        b = 0;
+        if(a == 0){
+            count++;
+        }
+        else{
+            count--;
+        }
+    }
+    else{
+         b = 1;
+        if(a == 1){
+            count++;
+        }
+        else{
+            count--;
+        }
+
+    }
+
+}
+
 
 void BlueMotor::setEffort(int effort)
 {
@@ -59,6 +111,18 @@ void BlueMotor::setEffort(int effort)
     {
         setEffort(effort, false);
     }
+}
+
+void BlueMotor::setEffortTuned(int effort){
+        if (effort < 0)
+    {
+        setEffort(map(-effort, 0, 400, deadBandAjust, 400), false);
+    }
+    else
+    {
+        setEffort(map(effort, 0, 400, deadBandAjust, 400), true);
+    }
+
 }
 
 void BlueMotor::setEffort(int effort, bool clockwise)
@@ -76,12 +140,15 @@ void BlueMotor::setEffort(int effort, bool clockwise)
     OCR1C = constrain(effort, 0, 400);
 }
 
-void BlueMotor::moveTo(long target)
+
+// non blocking implementation
+int BlueMotor::moveTo(long target)
 {
-    while(getPosition() != target){
-        float error = target - getPosition();
-        float effortAmount = Kp * error;
-        setEffort(effortAmount);
-    }
-    setEffort(0);
+    // calculate effort to send to motor
+    float error = target - getPosition();
+    float effortAmount =(Kp * error);
+    setEffortTuned(effortAmount);
+    // Serial.println(effortAmount);
+    // delay(10);
+    return error;
 }
