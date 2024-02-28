@@ -12,24 +12,6 @@ int b;// those are statues of encoders, 1 for high, 0 for low
 // No argument constructor
 BlueMotor::BlueMotor(){
 }
-/***********************
- * note: this code is running on 540 counts per blue motor round, and I think that's the count max used to measure the level position.
- * 
- * Dead band correction is included
- * 
- * 
- * 
- */
-
-
-
-
-
-
-
-
-
-
 
 void BlueMotor::setup()
 {
