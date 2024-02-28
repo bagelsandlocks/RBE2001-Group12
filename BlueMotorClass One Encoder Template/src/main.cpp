@@ -11,6 +11,8 @@
 Rangefinder rangefinder;
 BlueMotor motor;
 Romi32U4ButtonB buttonB;
+const uint8_t IR_DETECTOR_PIN = 1;
+IRDecoder decoder(14);
 long timeToPrint = 0;
 long now = 0;
 long newPosition = 0;
@@ -19,20 +21,6 @@ long sampleTime = 100;
 int speedInRPM = 0;
 int CPR = 270;
 int motorEffort = 400;
-
-void setup()
-{
-  Serial.begin(9600);
-  motor.setup();
-  motor.reset();
-  delay(3000);
-  Serial.print("Time (ms)");
-  Serial.print("   ");
-  Serial.print("Position");
-  Serial.print("    ");
-  Serial.println("speedInRPM");
-  delay(3000);
-}
 
 enum STATE
 {
@@ -65,9 +53,13 @@ int distanceFromStagingArea; //Needs real value
 //May need to add in some resets to the final if statements that switch states, thinking specifically about encoder counts
 void loop(){
     switch(robotState){
+        int keyPress = decoder.getKeyCode();
+        if(keyPress == NUM_6){
+            stop = !stop;
+        }
         case START:
         //reset all variables (replacement for setup)
-        if(/*buttonX is pressed on IR*/){
+        if(keyPress == NUM_1){
             robotState = 1;
             break;
         }
@@ -76,27 +68,29 @@ void loop(){
 
         case APPROACHHOUSE:
         while(stop == false && rangefinder.getDistance() > distanceFromHouse){
-            /*check for emergency stop, could make our lives a lot easier if we assign an interrupt to the stop button, otherwise we need to include this line a lot*/
             /*line follow forward*/
-            /*depending on if arm read position is faster assigning to a variable here or if an analogue read below is better check arm here*/
-            if(motor.getPosition() < armRaiseAngle){
-                /*set effort for raising the arm*/
+            motor.setEffort(400)
+            if(motor.getPosition() > armRaiseAngle){
+                motor.setEffort(0);
             }
         }
 
         if(stop == true){
             returnState = 1;
             robotState = 9;
-            /*stop arm and wheel movement*/
+            motor.setEffort(0);
+            chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(rangefinder.getDistance() < distanceFromHouse && motor.getPosition() > armRaiseAngle && taskOneOrFourDone == true && stop == false){
-            /*stop arm and wheel movement*/
+            motor.setEffort(0);
+            chassis.setMotorEfforts(0,0);
             robotState = 7;
             break;
         }else if (rangefinder.getDistance() < distanceFromHouse && motor.getPosition() > armRaiseAngle && stop == false){
-            /*stop arm and wheel movement*/
+            motor.setEffort(0);
+            chassis.setMotorEfforts(0,0);
             robotState = 2
             break;
         }
@@ -109,8 +103,7 @@ void loop(){
         }
 
         while(stop == false && motor.getPosition() < armRaiseAngle){
-            /*set arm effort*/
-            /*potentially check arm position*/
+            motor.setEffort(400);
         }
 
         if(stop == true){
@@ -194,7 +187,7 @@ void loop(){
 
         if(stop == false && /*jaw is at the correct amount open*/){
             /*stop jaw and arm movement*/
-            if(/*button has been pressed, whatever button we want. probable easiest to choose a button on the romi and check for debounce*/){
+            if(keyPress == NUM_2){
                 robotState = 6;
                 break;
             }
@@ -254,7 +247,7 @@ void loop(){
 
         if(stop == false && /*jaw is open enough*/){
             /*stop arm and jaw movement*/
-            if(/*button is pressed*/){
+            if(keyPress == NUM_3){
                 robotState = 8;
                 break;
             }
@@ -302,7 +295,7 @@ void loop(){
             taskOneOrFourDone = false;
             armRaiseAngle = twentyFivePosition;
             //make sure all variable that need it are reset
-            if(/*button is pressed*/){
+            if(keyPress == NUM_4){
                 robotState = 1;
                 break;
             }
@@ -311,7 +304,7 @@ void loop(){
         break;
 
         case STOP:
-        if(/*button is pressed*/){
+        if(keyPress == NUM_5){
             robotState = 0;
             break;
         }
