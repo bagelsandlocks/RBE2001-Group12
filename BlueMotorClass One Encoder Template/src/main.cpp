@@ -1,9 +1,14 @@
 #include <Arduino.h>
+#include <wpi-32u4-lib.h>
+#include <IRdecoder.h>
+#include <ir_codes.h>
+#include <Chassis.h>
 #include <Romi32U4.h>
-#include "BlueMotor.h"
+#include <BlueMotor.h>
+#include <ServoControl.h>
+#include <Rangefinder.h>
 
-<<<<<<< Updated upstream
-
+Rangefinder rangefinder;
 BlueMotor motor;
 Romi32U4ButtonB buttonB;
 long timeToPrint = 0;
@@ -29,33 +34,6 @@ void setup()
   delay(3000);
 }
 
-
-void loop()
-{
-  timeToPrint = millis() + sampleTime;
-  oldPosition = motor.getPosition();
-  while (buttonB.isPressed())
-  {
-    // The button is currently pressed.
-    motor.setEffort(motorEffort);
-    if ((now = millis()) > timeToPrint)
-    {
-      timeToPrint = now + sampleTime;
-      newPosition = motor.getPosition();
-      speedInRPM = ((newPosition-oldPosition)/CPR) / (timeToPrint/60000) ;
-      Serial.print(now);
-      Serial.print("          ");
-      Serial.print(newPosition);
-      Serial.print("          ");
-      Serial.println(speedInRPM);
-      oldPosition = newPosition;
-      
-    }
-    
-  }
-    
-  motor.setEffort(0);
-=======
 enum STATE
 {
     START = 0, //Start and reset state. Can only be accessed from the STOP state
@@ -73,7 +51,12 @@ int robotState = 0;
 int returnState;
 bool taskOneOrFourDone = false;
 bool stop = false;
-//armRaiseAngle starts at first house angle and gets changed in state 8 to other house angle
+int fourtyFivePosition = 3650;
+int escapeFourtyFivePosition = 4500;
+int twentyFivePosition = 6300;
+int armRaiseAngle = fourtyFivePosition; //armRaiseAngle starts at first house angle and gets changed in state 8 to other house angle
+int distanceFromHouse; //Needs actual value
+int distanceFromStagingArea; //Needs real value
 /*bool crossDetected = false;*/
 
 /*potential alternative may be to check for button press instead of stop == false*/
@@ -92,14 +75,13 @@ void loop(){
         break;
 
         case APPROACHHOUSE:
-        while(stop == false && /*call ultrasonic sensor as an analogue read or as a variable thats updated at the bottom of this loop*/ > /*whatever distance the robot needs to be away from the house*/){
+        while(stop == false && rangefinder.getDistance() > distanceFromHouse){
             /*check for emergency stop, could make our lives a lot easier if we assign an interrupt to the stop button, otherwise we need to include this line a lot*/
             /*line follow forward*/
             /*depending on if arm read position is faster assigning to a variable here or if an analogue read below is better check arm here*/
-            if(/*arm is less than correct raise angle*/){
+            if(motor.getPosition() < armRaiseAngle){
                 /*set effort for raising the arm*/
             }
-            /*check US sensor here if not analogue reading in while statement*/
         }
 
         if(stop == true){
@@ -109,11 +91,11 @@ void loop(){
             break;
         }
 
-        if(/*ultrasonic is less than X inches away*/ && /*arm is in position*/ && taskOneOrFourDone == true && stop == false){
+        if(rangefinder.getDistance() < distanceFromHouse && motor.getPosition() > armRaiseAngle && taskOneOrFourDone == true && stop == false){
             /*stop arm and wheel movement*/
             robotState = 7;
             break;
-        }else if (/*ultrasonic is less than X inches away*/ && /*arm is in position*/ && stop == false){
+        }else if (rangefinder.getDistance() < distanceFromHouse && motor.getPosition() > armRaiseAngle && stop == false){
             /*stop arm and wheel movement*/
             robotState = 2
             break;
@@ -126,7 +108,7 @@ void loop(){
             /*grab panel*/
         }
 
-        while(stop == false && /*arm is not in position*/){
+        while(stop == false && motor.getPosition() < armRaiseAngle){
             /*set arm effort*/
             /*potentially check arm position*/
         }
@@ -138,7 +120,7 @@ void loop(){
             break;
         }
 
-        if(/*panel is grabbed (either jaw stuck variable is true or other method)*/ && /*arm is in position*/){
+        if(/*panel is grabbed (either jaw stuck variable is true or other method)*/ && motor.getPosition() > armRaiseAngle){
             /*stop jaw and arm movement*/
             robotState = 3;
             break;
@@ -172,7 +154,7 @@ void loop(){
         break;
 
         case APPROACHSTAGING:
-        while(stop == false && /*ultrasonic sensor states that we're more than the distance required to place panel on staging area*/){
+        while(stop == false && rangefinder.getDistance() > distanceFromStagingArea){
             /*line follow forward*/
             /*may need to include contingency for cross*/
         }
@@ -184,7 +166,7 @@ void loop(){
             break;
         }
 
-        if(/*ultrasonic reading is at right distance*/){
+        if(rangefinder.getDistance() < distanceFromStagingArea){
             /*stop wheel movement*/
             robotState = 5;
             break;
@@ -193,7 +175,7 @@ void loop(){
         break;
 
         case PLACEPANELSTAGING:
-        while(stop == false && /*arm is not in position*/){
+        while(stop == false && motor.getPosition() > armRaiseAngle){
             /*set arm effort so it lowers*/
         }
 
@@ -253,7 +235,7 @@ void loop(){
         break;
 
         case PLACEPANELHOUSE:
-        while(stop == false && /*arm is not in position*/){
+        while(stop == false && motor.getPosition() < armRaiseAngle){
             /*set arm effort to lower*/
         }
 
@@ -318,7 +300,7 @@ void loop(){
         if(stop == false && /*line detected*/){
             /*stop wheel movement*/
             taskOneOrFourDone = false;
-            /*armRaiseAngle = task5 house angle*/
+            armRaiseAngle = twentyFivePosition;
             //make sure all variable that need it are reset
             if(/*button is pressed*/){
                 robotState = 1;
@@ -344,5 +326,4 @@ void loop(){
             break;
         }
     }
->>>>>>> Stashed changes
 }
