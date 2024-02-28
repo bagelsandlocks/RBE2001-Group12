@@ -7,12 +7,15 @@
 #include <BlueMotor.h>
 #include <ServoControl.h>
 #include <Rangefinder.h>
+#include <LineFollow.h>
 
-Rangefinder rangefinder;
+Rangefinder rangefinder(0, 12);
 BlueMotor motor;
 Romi32U4ButtonB buttonB;
 const uint8_t IR_DETECTOR_PIN = 1;
 IRDecoder decoder(14);
+ServoControl servo;
+LineFollow lineFollow;
 long timeToPrint = 0;
 long now = 0;
 long newPosition = 0;
@@ -45,9 +48,7 @@ int twentyFivePosition = 6300;
 int armRaiseAngle = fourtyFivePosition; //armRaiseAngle starts at first house angle and gets changed in state 8 to other house angle
 int distanceFromHouse; //Needs actual value
 int distanceFromStagingArea; //Needs real value
-/*bool crossDetected = false;*/
 
-/*potential alternative may be to check for button press instead of stop == false*/
 /*for all set efforts if repeatedly writing to the motors/servos is fucking with it then we can nest the command into an if statement so that it only triggers once per entrance and set the stop contingency to reset the controlling variable*/
 /*in a similar vain if the cases with multiple while statements are not triggering we can add a boolean variable to automatically skip any that have already been run to completion*/
 //May need to add in some resets to the final if statements that switch states, thinking specifically about encoder counts
@@ -58,7 +59,7 @@ void loop(){
             stop = !stop;
         }
         case START:
-        //reset all variables (replacement for setup)
+        //reset all variables (replacement for setup) includes all initilizations of sensors, servos, and motors
         if(keyPress == NUM_1){
             robotState = 1;
             break;
@@ -67,8 +68,8 @@ void loop(){
         break;
 
         case APPROACHHOUSE:
-        while(stop == false && rangefinder.getDistance() > distanceFromHouse){
-            /*line follow forward*/
+        if(stop == false && rangefinder.getDistance() > distanceFromHouse){
+            lineFollow.lineFollow();
             motor.setEffort(400)
             if(motor.getPosition() > armRaiseAngle){
                 motor.setEffort(0);
@@ -98,24 +99,24 @@ void loop(){
         break;
 
         case GRABPANELHOUSE:
-        while(stop == false && /*jaw is not stuck*/){
+        if(stop == false && /*jaw is not stuck*/){
             /*grab panel*/
         }
 
-        while(stop == false && motor.getPosition() < armRaiseAngle){
+        if(stop == false && motor.getPosition() < armRaiseAngle){
             motor.setEffort(400);
         }
 
         if(stop == true){
             returnState = 2;
             robotState = 9;
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             break;
         }
 
         if(/*panel is grabbed (either jaw stuck variable is true or other method)*/ && motor.getPosition() > armRaiseAngle){
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             robotState = 3;
             break;
@@ -124,12 +125,12 @@ void loop(){
         break;
 
         case TURN:
-        while(stop == false && /*encoder count is less than a 15 degree turn (so that the robot does not see the line underneath when line following)*/){
+        if(stop == false && /*encoder count is less than a 15 degree turn (so that the robot does not see the line underneath when line following)*/){
             /*point turn set effort*/
             /*update encoder count*/
         }
         /*if needed we can add in code that stops movement here*/
-        while(stop == false && /*line not detected*/){
+        if(stop == false && /*line not detected*/){
             /*point turn*/
         }
 
@@ -149,8 +150,8 @@ void loop(){
         break;
 
         case APPROACHSTAGING:
-        while(stop == false && rangefinder.getDistance() > distanceFromStagingArea){
-            /*line follow forward*/
+        if(stop == false && rangefinder.getDistance() > distanceFromStagingArea){
+            lineFollow.lineFollow();
             /*may need to include contingency for cross*/
         }
 
@@ -170,26 +171,25 @@ void loop(){
         break;
 
         case PLACEPANELSTAGING:
-        while(stop == false && motor.getPosition() > armRaiseAngle){
+        if(stop == false && motor.getPosition() > armRaiseAngle){
             motor.setEffort(-400);
         }
 
-        /*maybe add arm movement stop here*/
-        while(stop == false && /*jaw has not reached amount open we want*/){
-            /*stop arm movement, if not stopped above*/
+        if(stop == false && /*jaw has not reached amount open we want*/){
+            motor.setEffort(0);
             /* set effort to open jaw*/
         }
 
         if(stop == true){
             returnState = 5;
             robotState = 9;
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             break;
         }
 
         if(stop == false && /*jaw is at the correct amount open*/){
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             if(keyPress == NUM_2){
                 robotState = 6;
@@ -200,31 +200,30 @@ void loop(){
         break;
 
         case GRABPANELSTAGING:
-        while(stop == false && /*jaw is not closed*/){
+        if(stop == false && /*jaw is not closed*/){
             /*close jaw*/
         }
 
-        /*potential stop jaw code here*/
-        while(stop == false && /*encoder count is less than 15 degree turn*/){
-            /*potential stop jaw code*/
+        if(stop == false && /*encoder count is less than 15 degree turn*/){
+            servo.jawStop();
             /*start point turn*/
             /*update encoder count*/
         }
 
-        while(stop == false && /*line not detected*/){
+        if(stop == false && /*line not detected*/){
             /*point turn*/
         }
 
         if(stop == true){
             returnState = 6;
             robotState = 9;
-            /*stop jaw movement*/
+            servo.jawStop();
             chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(stop == false && /*line detected*/){
-            /*stop jaw movement*/
+            servo.jawStop();
             chassis.setMotorEfforts(0,0);
             robotState = 1;
             taskOneOrFourDone = true;
@@ -234,26 +233,25 @@ void loop(){
         break;
 
         case PLACEPANELHOUSE:
-        while(stop == false && motor.getPosition() < armRaiseAngle){
+        if(stop == false && motor.getPosition() < armRaiseAngle){
             motor.setEffort(-400);
         }
 
-        /*potential stop arm movement here*/
-        while(stop == false && /*jaw is not open enough*/){
-            /*potential stop arm movement here*/
+        if(stop == false && /*jaw is not open enough*/){
+            motor.setEffort(0);
             /*set jaw to open*/
         }
 
         if(stop == true){
             returnState = 7;
             robotState = 9;
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             break;
         }
 
         if(stop == false && /*jaw is open enough*/){
-            /*stop jaw movement*/
+            servo.jawStop();
             motor.setEffort(0);
             if(keyPress == NUM_3){
                 robotState = 8;
@@ -264,30 +262,30 @@ void loop(){
         break;
 
         case LINEFOLLOW:
-        while(stop == false && /*encoder count is less than 15 degree turn*/){
+        if(stop == false && /*encoder count is less than 15 degree turn*/){
             /*start point turn*/
             /*update encoder count*/
         }
 
-        while (stop == false && /*!crossDetected*/){//crossDetected might be better suited to be declared in another class
-            /*line follow forward*/
+        if (stop == false && /*!crossDetected*/){//crossDetected might be better suited to be declared in another class
+            lineFollow.lineFollow();
         }
         
-        while(stop == false && /*encoderCounts2 is less than a 15 degree turn*/){
+        if(stop == false && /*encoderCounts2 is less than a 15 degree turn*/){
             /*point turn*/
             /*update encodercount2*/
         }
 
-        while(stop == false && /*cross2 not detected*/){
-            /*line follow forward*/
+        if(stop == false && /*cross2 not detected*/){
+            lineFollow.lineFollow();
         }
 
-        while(stop == false && /*encoderCounts3 is less than a 15 degree turn*/){
+        if(stop == false && /*encoderCounts3 is less than a 15 degree turn*/){
             /*point turn*/
             /*update encodercount3*/
         }
 
-        while(stop == false && /*line not detected*/){
+        if(stop == false && /*line not detected*/){
             /*point turn*/
         }
         
@@ -322,7 +320,7 @@ void loop(){
             stop = !stop;
         }
         
-        while(stop == true){
+        if(stop == true){
             break;
         }
 
