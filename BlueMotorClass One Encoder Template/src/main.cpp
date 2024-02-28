@@ -109,12 +109,14 @@ void loop(){
         if(stop == true){
             returnState = 2;
             robotState = 9;
-            /*stop jaw and arm movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             break;
         }
 
         if(/*panel is grabbed (either jaw stuck variable is true or other method)*/ && motor.getPosition() > armRaiseAngle){
-            /*stop jaw and arm movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             robotState = 3;
             break;
         }
@@ -134,12 +136,12 @@ void loop(){
         if(stop == true){
             returnState = 3;
             robotState = 9;
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(stop == false && /*line detected*/){
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             robotState = 4;
             break;
         }
@@ -155,12 +157,12 @@ void loop(){
         if(stop == true){
             returnState = 4;
             robotState = 9;
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(rangefinder.getDistance() < distanceFromStagingArea){
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             robotState = 5;
             break;
         }
@@ -169,7 +171,7 @@ void loop(){
 
         case PLACEPANELSTAGING:
         while(stop == false && motor.getPosition() > armRaiseAngle){
-            /*set arm effort so it lowers*/
+            motor.setEffort(-400);
         }
 
         /*maybe add arm movement stop here*/
@@ -181,12 +183,14 @@ void loop(){
         if(stop == true){
             returnState = 5;
             robotState = 9;
-            /*stop arm and jaw movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             break;
         }
 
         if(stop == false && /*jaw is at the correct amount open*/){
-            /*stop jaw and arm movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             if(keyPress == NUM_2){
                 robotState = 6;
                 break;
@@ -214,12 +218,14 @@ void loop(){
         if(stop == true){
             returnState = 6;
             robotState = 9;
-            /*stop wheel and jaw movement*/
+            /*stop jaw movement*/
+            chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(stop == false && /*line detected*/){
-            /*stop jaw and wheel movement*/
+            /*stop jaw movement*/
+            chassis.setMotorEfforts(0,0);
             robotState = 1;
             taskOneOrFourDone = true;
             break;
@@ -229,7 +235,7 @@ void loop(){
 
         case PLACEPANELHOUSE:
         while(stop == false && motor.getPosition() < armRaiseAngle){
-            /*set arm effort to lower*/
+            motor.setEffort(-400);
         }
 
         /*potential stop arm movement here*/
@@ -241,12 +247,14 @@ void loop(){
         if(stop == true){
             returnState = 7;
             robotState = 9;
-            /*stop arm and jaw movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             break;
         }
 
         if(stop == false && /*jaw is open enough*/){
-            /*stop arm and jaw movement*/
+            /*stop jaw movement*/
+            motor.setEffort(0);
             if(keyPress == NUM_3){
                 robotState = 8;
                 break;
@@ -286,12 +294,12 @@ void loop(){
          if(stop == true){
             returnState = 8;
             robotState = 9;
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             break;
         }
 
         if(stop == false && /*line detected*/){
-            /*stop wheel movement*/
+            chassis.setMotorEfforts(0,0);
             taskOneOrFourDone = false;
             armRaiseAngle = twentyFivePosition;
             //make sure all variable that need it are reset
@@ -309,7 +317,11 @@ void loop(){
             break;
         }
 
-        /*check for button press here*/
+        keyPress = decoder.getKeyCode();
+        if(keyPress == NUM_6){
+            stop = !stop;
+        }
+        
         while(stop == true){
             break;
         }
