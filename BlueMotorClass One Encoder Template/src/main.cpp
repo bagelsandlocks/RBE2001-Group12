@@ -14,12 +14,23 @@
 const uint8_t IR_DETECTOR_PIN = 1;
 IRDecoder decoder(14);
 
+int rightSense = 21;
+int leftSense = 22;
+
+int leftValue = 0;
+int rightValue = 0;
+int error = 0;
+int effort = 0;
+
+
 
 int state = 0;
 int action = 0;
 int asdf = 0;
 int lastState = -1;
 String printable = "";
+
+Chassis chassis;
 
 String actions[] = {"Waiting", "Open Gripper", "Close Gripper",
                 "Position on Staging Platform", "Position on 45",
@@ -30,10 +41,10 @@ String actions[] = {"Waiting", "Open Gripper", "Close Gripper",
 int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
 
 // Final Project Task 2
-int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
+//int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
 
 // Final Project Task 3
-int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
+//int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
 
 int numStates = sizeof(orderOfActions) / sizeof(int);
 
@@ -51,7 +62,10 @@ const unsigned int printPause = 1000;
 
 void setup()
 {
+    pinMode(rightSense, INPUT);
+    pinMode(leftSense, INPUT);
     decoder.init();
+    chassis.init();
     Serial.begin(9600);
     delay(1000);
     Serial.println("Hello");
@@ -86,10 +100,11 @@ void loop()
         motor.reset();
     }
     if (keyPress == LEFT_ARROW){
-        servo.jawClose();
+        action = 9;
+        
     }
     if (keyPress == RIGHT_ARROW){
-        servo.jawOpen();
+        action = 8;
     }
 
 
@@ -148,6 +163,17 @@ void loop()
             Serial.println("Done to Escape Fourty Five");
             action = 6;
         }
+    } else if (action == 9){
+        // Line follow
+        rightValue = analogRead(rightSense);
+        leftValue = analogRead(leftSense);
+        error = leftValue - rightValue;
+        //Serial.println(error);
+        effort = error * 0.015;
+        chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
+    } else if (action == 8){
+        chassis.setMotorEfforts(0, 0);
+        action = 0;
     }
 
 
