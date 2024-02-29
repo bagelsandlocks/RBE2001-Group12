@@ -23,7 +23,7 @@ int rightValue = 0;
 int error = 0;
 int effort = 0;
 
-volatile int urfRead = 0;
+volatile float urfRead = 0;
 
 
 
@@ -39,9 +39,30 @@ String actions[] = {"Waiting", "Open Gripper", "Close Gripper",
                 "Position on Staging Platform", "Position on 45",
                  "Position on 25", "Prepare to Escape 45"};
 
+enum action
+{
+    wait = 0,
+    openGripper = 1,
+    closeGripper = 2,
+    positionOnZero = 3,
+    positionArmFF = 4,
+    positionOnTF = 5,
+    liftFromFF = 22,
+    liftFromTF = 7,
+    turnToNextLine = 8,
+    goTowardsBox = 9,
+    goTowardsFF = 20,
+    approachFF = 21,
+    goTowardsTF = 11,
+    emergencyStop = 99,
+
+};
+
 
 // Final Project Task 1
-int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
+
+int orderOfActions[] = {wait, openGripper, goTowardsFF, positionArmFF, approachFF,
+                         closeGripper, liftFromFF, turnToNextLine, positionOnZero, closeGripper};
 
 // Final Project Task 2
 //int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
@@ -56,9 +77,11 @@ BlueMotor motor;
 Rangefinder rangefinder(7, 12);
 
 int fourtyFivePosition = 3650;
-int escapeFourtyFivePosition = 4500;
+int escapeFourtyFivePosition = 3100; // after backing up a lil bit
 int twentyFivePosition = 6300;
 int zeroPosition = 0;
+
+int approachFFDist = 8.83;
 
 unsigned long long timeToPrint = 0;
 const unsigned int printPause = 250;
@@ -121,15 +144,33 @@ bool turnUntilNextLineHit(int direction){
     return 0;
 }
 
-void lineFollow(){
-    // Line follow
+void lineFollow(int speed=50){
     rightValue = analogRead(rightSense);
     leftValue = analogRead(leftSense);
     error = leftValue - rightValue;
-    //Serial.println(error);
     effort = error * 0.1;
-    chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
+    chassis.setMotorEfforts(-(speed + effort), -(speed - effort));
 }
+
+// returns TRUE if done approaching
+bool moveUntil(float dist){
+    // FIND ROMI DISTANCE
+        motorClickCount = (chassis.getLeftEncoderCount() + chassis.getRightEncoderCount()) / 2;
+        romiDistanceTraveled = (((7) * M_PI / 1440) * motorClickCount) * 2;
+
+        // negative since backwards
+        if (romiDistanceTraveled < -dist){
+            return true;
+        }else{
+            return false;
+        }
+}
+
+void resetChassisEncoders(){
+    chassis.getLeftEncoderCount(true);
+    chassis.getRightEncoderCount(true);
+}
+
 
 void loop()
 {
@@ -165,26 +206,32 @@ void loop()
         action = 8;
     }
 
+    if (action == emergencyStop){
+        chassis.setMotorEfforts(0, 0);
+        Serial.println("Stopped");
+        action = wait;
+    }
 
-    if (action == 0){
+
+    if (action == wait){
         chassis.setMotorEfforts(0, 0);
         // Waiting state
         printable = "Action 0";
 
 
-    } else if (action == 1){
+    } else if (action == openGripper){
         // open gripper
         printable = "Action 1";
         servo.jawOpen();
         action = 0;
 
-    } else if (action == 2){
+    } else if (action == closeGripper){
         // close gripper
         printable = "Action 2";
         servo.jawClose();
         action = 0;
 
-    } else if (action == 3){
+    } else if (action == positionOnZero){
         // position on staging platform
         printable = "Action 3";
         if (abs(motor.moveTo(zeroPosition)) > 2){
@@ -194,7 +241,7 @@ void loop()
             action = 6;
         }
 
-    } else if (action == 4){
+    } else if (action == positionArmFF){
         // position on 45
         printable = "Action 4";
         if (abs(motor.moveTo(fourtyFivePosition)) > 2){
@@ -203,7 +250,7 @@ void loop()
             Serial.println("Done to Fourty Five");
             action = 6;
         }
-    } else if (action == 5){
+    } else if (action == positionOnTF){
         // position on 25
         printable = "Action 5";
                 if (abs(motor.moveTo(twentyFivePosition)) > 10){
@@ -223,7 +270,7 @@ void loop()
             Serial.println("Done to Escape Fourty Five");
             action = 6;
         }
-    } else if (action == 9){}
+    } else if (action == 9){
 
         lineFollow();
 
@@ -252,16 +299,34 @@ void loop()
         }
 
     } else if(action == 12){
-        // Line follow
-        rightValue = analogRead(rightSense);
-        leftValue = analogRead(leftSense);
-        error = leftValue - rightValue;
-        //Serial.println(error);
-        effort = error * 0.1;
-        chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
+        lineFollow;
 
 
     }
+
+    if (action == goTowardsFF){
+
+        // proportionally line follow to correct distance to approach 45
+        lineFollow((urfRead - approachFFDist) * 10);
+
+        // stop moving and wait if we get to distance
+        if (urfRead < approachFFDist){
+            action = 0;
+        }
+    }
+
+
+
+    if (action == approachFF){
+        resetChassisEncoders;
+        lineFollow;
+        if (moveUntil(3)){
+            action = 0;
+        };
+    }
+
+    if (action == )
+
 
 
     // print when state change
