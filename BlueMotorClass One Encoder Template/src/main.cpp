@@ -12,6 +12,8 @@
 #include <ServoControl.h>
 #include <Rangefinder.h>
 
+Romi32U4ButtonB buttonB;
+
 const uint8_t IR_DETECTOR_PIN = 1;
 IRDecoder decoder(14);
 
@@ -57,6 +59,9 @@ enum action
     emergencyStop = 99,
     centerOnLine = 10,
     resetEncoders = 50,
+    lineFollowUntilLine = 56,
+    turnRight = 54,
+    approachTF = 55,
 
 };
 
@@ -64,13 +69,14 @@ enum action
 // Final Project Task 1
 
 // int orderOfActions[] = {wait, openGripper, goTowardsFF, positionArmFF, approachFF,
-//                          closeGripper, liftFromFF, turnToNextLine, positionOnZero, closeGripper};
+//                          closeGripper, liftFromFF, turnToNextLine, positionOnZero, openGripper};
 
-int orderOfActions[] = {wait, openGripper, goTowardsFF, positionArmFF, approachFF,
-                         closeGripper, liftFromFF, turnToNextLine, positionOnZero, closeGripper};
+// int orderOfActions[] = {wait, openGripper, goTowardsFF, positionArmFF, approachFF,
+//                          closeGripper, positionOnTF, turnToNextLine, positionOnZero, goTowardsBox, openGripper};
 
-// Final Project Task 2
-//int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
+//Final Project Task 3
+// Line follow to next house
+int orderOfActions[] = {wait, lineFollowUntilLine, centerOnLine, turnRight, lineFollowUntilLine, centerOnLine, turnRight, approachTF};
 
 // Final Project Task 3
 //int orderOfActions[] = {0, 1, 3, 2, 4, 1, 2, 5, 1, 2};
@@ -81,12 +87,13 @@ ServoControl servo;
 BlueMotor motor;
 Rangefinder rangefinder(7, 12);
 
-int fourtyFivePosition = 3400;
+int fourtyFivePosition = 3300;
 int escapeFourtyFivePosition = 3100; // after backing up a lil bit
-int twentyFivePosition = 6300;
+int twentyFivePosition = 4000;
 int zeroPosition = 0;
 
-int approachFFDist = 8.83;
+int approachFFDist = 9.2;
+int approachTFDist = 9.2;
 int approachBoxDist = 4;
 
 unsigned long long timeToPrint = 0;
@@ -99,6 +106,7 @@ float romiDistanceTraveled = 0;
 int hitLine = 0;
 bool linePrevState = 0;
 bool lineState = 0;
+bool oldButtonState = 0;
 
 
 void setup()
@@ -117,7 +125,7 @@ void setup()
     timeToPrint = millis() + printPause;
 }
 
-// 0 CCW, 1 CW
+// 0 CCW, 1 CW returns true if done
 bool turnUntilNextLineHit(int direction){
     if (!direction){
         chassis.setMotorEfforts(-50, 50);
@@ -128,9 +136,9 @@ bool turnUntilNextLineHit(int direction){
         if (hitLine && analogRead(leftSense) < 50){
             Serial.println(analogRead(leftSense));
             chassis.setMotorEfforts(0, 0);
-            return 0;
-        } else{
             return 1;
+        } else{
+            return 0;
         }
     }
     if (direction){
@@ -142,9 +150,9 @@ bool turnUntilNextLineHit(int direction){
     if (hitLine && analogRead(rightSense) < 120){
         Serial.println(analogRead(rightSense));
         chassis.setMotorEfforts(0, 0);
-        return 0;
+        return 1;
         } else{
-            return 1;
+            return 0;
         }
     }
     return 0;
@@ -168,6 +176,7 @@ bool moveUntil(float dist){
     // FIND ROMI DISTANCE
         motorClickCount = (chassis.getLeftEncoderCount() + chassis.getRightEncoderCount()) / 2;
         romiDistanceTraveled = (((7) * M_PI / 1440) * motorClickCount) * 2;
+        Serial.println(romiDistanceTraveled);
 
         // negative since backwards
         if (romiDistanceTraveled < -dist){
@@ -188,9 +197,13 @@ void loop()
 
     // Receive ENTER_SAVE keypress
     int keyPress = decoder.getKeyCode();
-    if (keyPress == ENTER_SAVE){
+    //if (keyPress == ENTER_SAVE){
+    if (buttonB.isPressed() && oldButtonState == 0){
+        oldButtonState = 1;
+        chassis.setMotorEfforts(0, 0);
         state = (state + 1) % numStates;
         action = orderOfActions[state];
+        delay(1000);
     }
     if (keyPress == NUM_7){
         motor.setEffort(400);
@@ -204,7 +217,7 @@ void loop()
         //Serial.println(servo.getPosition());
     }
     if (keyPress == NUM_8){
-        //servo.setEffort(100);
+        //servo.setEffort(0);
         //Serial.println(servo.getPosition());
         motor.setEffort(0);
         Serial.println(motor.getPosition());
@@ -230,6 +243,8 @@ void loop()
 
 
     if (action == wait){
+        oldButtonState = 0;
+        //action = int(Serial.write(Serial.parseInt()));
         chassis.setMotorEfforts(0, 0);
         // Waiting state
 
@@ -247,41 +262,44 @@ void loop()
         servo.setEffort(100);
         if(servo.getPosition() > 850){
             servo.setEffort(0);
-            action = 0;
+            action = wait;
         }
 
     } else if (action == positionOnZero){
-        if (abs(motor.moveTo(zeroPosition)) > 2){
-            motor.moveTo(zeroPosition);
+        if (motor.getPosition() > zeroPosition){
+            motor.setEffort(400);
         } else{
             motor.setEffort(0);
             action = wait;
         }
 
     } else if (action == positionArmFF){
-        if (abs(motor.moveTo(fourtyFivePosition)) > 2){
-                    motor.moveTo(fourtyFivePosition);
+        if (motor.getPosition() < fourtyFivePosition){
+                    motor.setEffort(-400);
         } else{
+            motor.setEffort(0);
+            Serial.println("set to 45");
             action = resetEncoders;
         }
 
     } else if (action == positionOnTF){
-        if (abs(motor.moveTo(twentyFivePosition)) > 10){
-            motor.moveTo(twentyFivePosition);
+        if (motor.getPosition() < twentyFivePosition){
+            motor.setEffort(-400);
         } else{
             motor.setEffort(0);
             action = 0;
         }
     } else if (action == goTowardsBox){
 
-        lineFollow((urfRead - approachBoxDist) * 10);
+        lineFollow();
 
         if (urfRead < approachBoxDist){
             action = 0;
         }
-    } else if (action == 8){
-        chassis.setMotorEfforts(0, 0);
-        action = 0;
+    } else if (action == turnToNextLine){
+        if (turnUntilNextLineHit(0)){
+            action = 0;
+        };
 
     } else if (action == centerOnLine){
         lineFollow();
@@ -315,14 +333,48 @@ void loop()
     if (action == approachFF){
         
         lineFollow();
-        if (moveUntil(2)){
+        if (moveUntil(4)){
             action = 0;
         };
     }
 
     if (action == resetEncoders){
-        resetChassisEncoders;
+        resetChassisEncoders();
         action = 0;
+    }
+
+    if (action == liftFromFF){
+        if (abs(motor.moveTo(fourtyFivePosition + 100)) > 10){
+            motor.moveTo(fourtyFivePosition + 100);
+        } else{
+            motor.setEffort(0);
+            action = wait;
+        }
+    }
+
+    if (action == lineFollowUntilLine){
+        lineFollow();
+
+        if (leftValue + rightValue > 1400){
+            chassis.setMotorEfforts(0, 0);
+            resetChassisEncoders();
+            action = 0;
+        }
+    }
+
+    if (action == turnRight){
+        if (turnUntilNextLineHit(1)){
+            action = wait;
+        };
+    }
+
+    if (action == approachTF){
+        lineFollow();
+
+        // stop moving and wait if we get to distance
+        if (urfRead < approachTFDist){
+            action = 0;
+        }
     }
 
 
@@ -330,20 +382,24 @@ void loop()
     // print when state change
     if (lastState != state){
         Serial.print("Current Action: ");
-        Serial.print(actions[orderOfActions[state]]);
+        //Serial.print(actions[orderOfActions[state]]);
         Serial.print("      Next Action: ");
-        Serial.println(actions[orderOfActions[(state + 1) % numStates]]);
+        //Serial.println(actions[orderOfActions[(state + 1) % numStates]]);
         lastState = state;
     }
 
     if (millis() >= timeToPrint){
-        Serial.println(urfRead);
+        //Serial.println(urfRead);
         // Serial.print(leftValue);
         // Serial.print("            ");
         // Serial.println(rightValue);
         //Serial.println(romiDistanceTraveled);
         //Serial.println(effort);
         //Serial.println(servo.getPosition());
+        //Serial.println(motor.getPosition());
+        Serial.print(leftValue);
+        Serial.print("       ");
+        Serial.println(rightValue);
         timeToPrint = millis() + printPause;
     }
 

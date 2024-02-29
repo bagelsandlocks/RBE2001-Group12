@@ -26,6 +26,6 @@ private:
     const int AIN1 = 13;
     const int ENCA = 0;
     const int ENCB = 1;
-    const int deadBandAjust = 100;
+    const int deadBandAjust = 150;
     float Kp = 1.5;
 };
