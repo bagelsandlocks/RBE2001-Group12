@@ -184,16 +184,17 @@ void loop()
         action = orderOfActions[state];
     }
     if (keyPress == NUM_7){
-        motor.setEffort(400);
+        servo.setEffort(1300);
+        Serial.println(servo.getPosition);
         //Serial.println(motor.getPosition());
     }
     if (keyPress == NUM_9){
-        motor.setEffort(-400);
-        //Serial.println(motor.getPosition());
+        servo.setEffort(1700);
+        Serial.println(servo.getPosition);
     }
     if (keyPress == NUM_8){
-        motor.setEffort(0);
-        Serial.println(motor.getPosition());
+        servo.setEffort(1500);
+        Serial.println(servo.getPosition);
     }
     if (keyPress == NUM_5){
         motor.reset();
@@ -221,15 +222,29 @@ void loop()
 
     } else if (action == openGripper){
         // open gripper
+
+
+        servo.setEffort(-100);
+        if(servo.getPosition > 860){
+            servo.setEffort(0);
+            action = 0;
+        }
+
+
         printable = "Action 1";
-        servo.jawOpen();
-        action = 0;
+        //servo.jawOpen();
+        //action = 0;
 
     } else if (action == closeGripper){
         // close gripper
+        servo.setEffort(100);
+        if(servo.getPosition < 300){
+            servo.setEffort(0);
+            action = 0;
+        }
         printable = "Action 2";
-        servo.jawClose();
-        action = 0;
+        //servo.jawClose();
+        //action = 0;
 
     } else if (action == positionOnZero){
         // position on staging platform

@@ -52,6 +52,15 @@ void ServoControl::setup()
   jawServo.attach();
 }
 
+int ServoControl::getPosition(){
+    return analogRead(linearPotPin);
+}
+
+void ServoControl::setEffort(int effort){
+    effort = map(effort,-100,100,servoJawDown,servoJawUp);
+    jawServo.writeMicroseconds(effort);
+}
+
 void ServoControl::jawOpen(){
     stuckCount = 0;
     int lastPosition;
