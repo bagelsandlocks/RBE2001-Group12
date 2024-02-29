@@ -10,6 +10,7 @@
 
 #include <BlueMotor.h>
 #include <ServoControl.h>
+#include <Rangefinder.h>
 
 const uint8_t IR_DETECTOR_PIN = 1;
 IRDecoder decoder(14);
@@ -21,6 +22,8 @@ int leftValue = 0;
 int rightValue = 0;
 int error = 0;
 int effort = 0;
+
+volatile int urfRead = 0;
 
 
 
@@ -50,6 +53,7 @@ int numStates = sizeof(orderOfActions) / sizeof(int);
 
 ServoControl servo;
 BlueMotor motor;
+Rangefinder rangefinder(7, 12);
 
 int fourtyFivePosition = 3650;
 int escapeFourtyFivePosition = 4500;
@@ -57,7 +61,15 @@ int twentyFivePosition = 6300;
 int zeroPosition = 0;
 
 unsigned long long timeToPrint = 0;
-const unsigned int printPause = 1000;
+const unsigned int printPause = 250;
+
+int distanceToReckon = 10.5; // until robot is centered over black tape line
+int motorClickCount = 0;
+float romiDistanceTraveled = 0;
+
+int hitLine = 0;
+bool linePrevState = 0;
+bool lineState = 0;
 
 
 void setup()
@@ -66,6 +78,7 @@ void setup()
     pinMode(leftSense, INPUT);
     decoder.init();
     chassis.init();
+    rangefinder.init();
     Serial.begin(9600);
     delay(1000);
     Serial.println("Hello");
@@ -75,8 +88,53 @@ void setup()
     timeToPrint = millis() + printPause;
 }
 
+// 0 CCW, 1 CW
+bool turnUntilNextLineHit(int direction){
+    if (!direction){
+        chassis.setMotorEfforts(-50, 50);
+        if (analogRead(leftSense) > 620){
+            hitLine = 1;
+            Serial.println(analogRead(leftSense));
+        }
+        if (hitLine && analogRead(leftSense) < 50){
+            Serial.println(analogRead(leftSense));
+            chassis.setMotorEfforts(0, 0);
+            return 0;
+        } else{
+            return 1;
+        }
+    }
+    if (direction){
+    chassis.setMotorEfforts(50, -50);
+    if (analogRead(rightSense) > 620){
+        hitLine = true;
+        Serial.println(analogRead(rightSense));
+        }
+    if (hitLine && analogRead(rightSense) < 120){
+        Serial.println(analogRead(rightSense));
+        chassis.setMotorEfforts(0, 0);
+        return 0;
+        } else{
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void lineFollow(){
+    // Line follow
+    rightValue = analogRead(rightSense);
+    leftValue = analogRead(leftSense);
+    error = leftValue - rightValue;
+    //Serial.println(error);
+    effort = error * 0.1;
+    chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
+}
+
 void loop()
 {
+    urfRead = rangefinder.getDistance();
+
 
     // Receive ENTER_SAVE keypress
     int keyPress = decoder.getKeyCode();
@@ -109,8 +167,10 @@ void loop()
 
 
     if (action == 0){
+        chassis.setMotorEfforts(0, 0);
         // Waiting state
         printable = "Action 0";
+
 
     } else if (action == 1){
         // open gripper
@@ -163,17 +223,44 @@ void loop()
             Serial.println("Done to Escape Fourty Five");
             action = 6;
         }
-    } else if (action == 9){
+    } else if (action == 9){}
+
+        lineFollow();
+
+        if (rightValue + leftValue > 1400){
+            action = 10;
+            chassis.getLeftEncoderCount(true);
+            chassis.getRightEncoderCount(true);
+        }
+    } else if (action == 8){
+        chassis.setMotorEfforts(0, 0);
+        action = 0;
+    } else if (action == 10){
+        lineFollow();
+
+        // FIND ROMI DISTANCE
+        motorClickCount = (chassis.getLeftEncoderCount() + chassis.getRightEncoderCount()) / 2;
+        romiDistanceTraveled = (((7) * M_PI / 1440) * motorClickCount) * 2;
+
+        if (romiDistanceTraveled < -10.4){
+            action = 11;
+        }
+    } else if (action == 11){
+        if (!turnUntilNextLineHit(1)){
+            hitLine = 0;
+            action = 0;
+        }
+
+    } else if(action == 12){
         // Line follow
         rightValue = analogRead(rightSense);
         leftValue = analogRead(leftSense);
         error = leftValue - rightValue;
         //Serial.println(error);
-        effort = error * 0.015;
+        effort = error * 0.1;
         chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
-    } else if (action == 8){
-        chassis.setMotorEfforts(0, 0);
-        action = 0;
+
+
     }
 
 
@@ -187,7 +274,12 @@ void loop()
     }
 
     if (millis() >= timeToPrint){
-        //Serial.println(motor.getPosition());
+        Serial.println(urfRead);
+        // Serial.print(leftValue);
+        // Serial.print("            ");
+        // Serial.println(rightValue);
+        //Serial.println(romiDistanceTraveled);
+        //Serial.println(effort);
         timeToPrint = millis() + printPause;
     }
 
