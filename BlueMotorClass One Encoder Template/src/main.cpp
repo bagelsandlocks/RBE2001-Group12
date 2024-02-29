@@ -131,6 +131,8 @@ void lineFollow(){
     chassis.setMotorEfforts(-(50 + effort), -(50 - effort));
 }
 
+
+
 void loop()
 {
     urfRead = rangefinder.getDistance();
@@ -143,16 +145,17 @@ void loop()
         action = orderOfActions[state];
     }
     if (keyPress == NUM_7){
-        motor.setEffort(400);
+        servo.setEffort(1300);
+        Serial.println(servo.getPosition);
         //Serial.println(motor.getPosition());
     }
     if (keyPress == NUM_9){
-        motor.setEffort(-400);
-        //Serial.println(motor.getPosition());
+        servo.setEffort(1700);
+        Serial.println(servo.getPosition);
     }
     if (keyPress == NUM_8){
-        motor.setEffort(0);
-        Serial.println(motor.getPosition());
+        servo.setEffort(1500);
+        Serial.println(servo.getPosition);
     }
     if (keyPress == NUM_5){
         motor.reset();
@@ -174,6 +177,14 @@ void loop()
 
     } else if (action == 1){
         // open gripper
+
+        while (servo.getPosition)
+        {
+            /* code */
+        }
+        
+
+
         printable = "Action 1";
         servo.jawOpen();
         action = 0;
@@ -223,7 +234,9 @@ void loop()
             Serial.println("Done to Escape Fourty Five");
             action = 6;
         }
-    } else if (action == 9){}
+    } else if (action == 9){
+        
+    }
 
         lineFollow();
 
