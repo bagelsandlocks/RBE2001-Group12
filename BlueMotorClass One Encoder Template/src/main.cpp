@@ -178,22 +178,28 @@ void loop()
     } else if (action == 1){
         // open gripper
 
-        while (servo.getPosition)
-        {
-            /* code */
+
+        servo.setEffort(-100);
+        if(servo.getPosition > 860){
+            servo.setEffort(0);
+            action = 0;
         }
-        
 
 
         printable = "Action 1";
-        servo.jawOpen();
-        action = 0;
+        //servo.jawOpen();
+        //action = 0;
 
     } else if (action == 2){
         // close gripper
+        servo.setEffort(100);
+        if(servo.getPosition < 300){
+            servo.setEffort(0);
+            action = 0;
+        }
         printable = "Action 2";
-        servo.jawClose();
-        action = 0;
+        //servo.jawClose();
+        //action = 0;
 
     } else if (action == 3){
         // position on staging platform
